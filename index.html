@@ -1,0 +1,127 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Getting started · Project Snapshot for Jira</title><link rel="icon" href="icon.svg"><link rel="stylesheet" href="style.css"></head><body><header><div class="bar"><a class="brand" href="index.html"><img src="icon.svg" alt="">Project Snapshot for Jira</a><nav><a href="index.html" class="on">Getting started</a><a href="faq.html">FAQ</a><a href="troubleshooting.html">Troubleshooting</a><a href="changelog.html">Changelog</a><a href="privacy.html">Privacy policy</a><a href="terms.html">Terms of use</a><a href="data-handling.html">Data handling</a></nav></div></header><main><h1>Getting started — Project Snapshot for Jira</h1>
+<p>Project Snapshot exports one Jira Cloud project — every issue, comment, worklog, change, link, attachment and the project&#39;s configuration — into ZIP files saved on your computer. Since version 1.1 it also exports any JQL query (everything, or attachments only) and shows you which projects have a recent snapshot and which have none. Since version 1.2 every full export includes a readable HTML archive, you can export only what changed since the last snapshot, and you can verify a downloaded ZIP against its manifest inside the app. Since version 1.3 a Jira admin can set a snapshot policy — &quot;every project needs a snapshot no older than N days&quot; — and the app checks it weekly and creates Jira reminder tasks for projects that fall behind. Every export happens in your browser. Nothing is uploaded anywhere.</p>
+<h2>What you need</h2>
+<ul>
+<li>Jira Cloud (Software, Work Management or Service Management).</li>
+<li><strong>Project admin</strong> permission on the project you want to export. The project page lives under Project settings, which Jira shows only to project admins. The <strong>Apps → Project Snapshot</strong> page is open to any Jira user, but it only shows projects you can browse and every export contains only what you can see. Changing the <strong>snapshot policy</strong> needs the Jira global permission <strong>Administer Jira</strong>.</li>
+<li>A current desktop browser. Chrome and Edge are the browsers we test with; Firefox and Safari are not yet verified (the export uses ordinary file downloads, so they are expected to work, but we have not confirmed the multi-part flow there).</li>
+<li>Free disk space roughly equal to the size of the project&#39;s attachments plus 10 %, and enough free memory for two ZIP parts at the chosen part size (see &quot;Your first export&quot;, step 3).</li>
+</ul>
+<h2>Install</h2>
+<ol>
+<li>Open the app&#39;s Marketplace page and click <strong>Get it now</strong> (or <strong>Try it free</strong> for sites with more than 10 users).</li>
+<li>A Jira site admin approves the installation. The app asks for three permissions: <em>read:jira-work</em> (read issues, projects and attachments), <em>write:jira-work</em> (used for one thing only: creating the &quot;Snapshot due&quot; reminder tasks when you switch the snapshot policy on and choose a reminder project — the app writes nothing else to Jira) and <em>storage:app</em> (the app&#39;s own small storage for the snapshot log and the policy described below). It asks for nothing else.</li>
+<li>That&#39;s it. Exports need no configuration. The snapshot policy is off until a Jira admin switches it on.</li>
+</ol>
+<h2>Your first export</h2>
+<ol>
+<li>Open the project in Jira. Go to <strong>Project settings → Project Snapshot</strong> (bottom of the settings sidebar).</li>
+<li>The page shows the project key and the export options. (The issue count appears in the progress panel once the export starts; there is no count before that.)</li>
+<li>Choose a <strong>part size</strong> — 250, 500 or 1000 MB. A ZIP part is finished when it reaches this size or 60,000 files, whichever comes first. The browser keeps the part being built and the previous one (until the next is saved) in memory, plus the attachments being downloaded, so the tab needs roughly twice the part size free. If you&#39;re unsure, leave it at 500 MB. Use 250 MB on machines with less than 8 GB of RAM.</li>
+<li>Optionally enter a <strong>JQL filter</strong> to export only part of the project, for example <code>fixVersion = &quot;2.4&quot;</code>. It is combined with <code>project = KEY</code>; a filter with unbalanced parentheses is rejected when you click Export. A filtered export is a partial snapshot (see step 11).</li>
+<li>Choose a <strong>mode</strong>: <strong>Everything</strong> (the default: per-issue JSON with comments, worklogs, change history, links, plus attachment files) or <strong>Attachments only</strong> (just the attachment files plus an <code>issues.csv</code> index — no JSON per issue).</li>
+<li>Leave <strong>Readable HTML archive (index.html + one page per issue)</strong> ticked unless you only want machine-readable files. It is not available in Attachments only mode.</li>
+<li>Click <strong>Export project</strong>.</li>
+<li>The first ZIP part is downloaded automatically, to wherever your browser puts downloads (if your browser is set to ask where to save each file, it asks once per part). Every further part pauses the export with a yellow <strong>Part N is ready — Save part N</strong> banner: click the button and the export continues. Browsers allow only one automatic download per click, which is why later parts need yours. If a part did not appear in your downloads, use <strong>Save part N again</strong> under the progress panel before the next part is ready.</li>
+<li>Watch the progress panel: issues processed, attachments downloaded, bytes written, current part and the list of saved parts. Leave the tab open and in the foreground until it says <strong>Done</strong>; if you try to close or reload it, the browser warns you.</li>
+<li>Read the <strong>Done</strong> line: &quot;Done: X of Y issues, N attachments, P part(s)&quot; — X is the number of issues actually written, Y the number processed — followed by the number of errors, if any. If errors are not zero, open <code>errors.json</code> in the last part to see what could not be fetched. A run that hits 25 failures in a row, or loses its session (HTTP 401/403 on a search), stops as <strong>Failed</strong>: the part in progress is discarded, parts already saved stay valid, and you run the export again after fixing the cause.</li>
+<li>When the export finishes, the app records it in the <strong>snapshot log</strong> (see below) and it appears in the <strong>Previous snapshots</strong> panel on this page. If it was a <strong>complete snapshot</strong> — mode Everything, no JQL filter, not incremental, on a licensed site, with zero errors — it becomes the project&#39;s current snapshot on the Coverage overview and the baseline for incremental exports. Any other export (Attachments only, filtered, incremental, sample mode, or with errors) is listed in the history marked &quot;(partial)&quot; and does not change Coverage. If the log write itself fails, a red banner says so; your ZIPs are unaffected.</li>
+</ol>
+<h2>Opening the HTML archive</h2>
+<ol>
+<li>Unpack <strong>all</strong> parts of the snapshot into <strong>one</strong> folder (each part is a normal ZIP; <code>index.html</code> is in the last part, the issue pages are spread across the parts).</li>
+<li>Double-click <code>index.html</code>. It opens in any browser, offline: a list of all issues you can sort by clicking a column header and filter with the search box.</li>
+<li>Click an issue to open <code>issues/&lt;KEY&gt;.html</code>: fields (with the real names of custom fields), description, comments, worklogs, change history, links and links to the attachment files in <code>attachments/</code>.</li>
+</ol>
+<p>The archive is static HTML. It loads nothing from the internet and contains no script apart from the inline sort and search on the index page. Do not open it from inside a ZIP viewer — unpack first, otherwise the links between the pages and to the attachments do not resolve.</p>
+<h2>Incremental exports</h2>
+<p>Once a project has at least one <strong>complete</strong> snapshot in the log, the export options show <strong>Incremental: only issues updated since the last snapshot</strong> with the date of that snapshot. Tick it and the export fetches only issues whose <code>updated</code> date is at or after that snapshot <strong>minus one hour</strong> (a safety margin so rounding can never skip an issue; an issue exported twice is harmless, a gap is not). The cut-off is written in the time zone of your Jira profile, which is how Jira reads JQL dates; if the app cannot read your time zone the margin is widened to 26 hours.</p>
+<ul>
+<li><code>README.txt</code> and <code>manifest.json</code> in the ZIP are marked <strong>INCREMENTAL</strong> with the cut-off time.</li>
+<li><strong>Keep incremental ZIPs together with the full snapshot they extend.</strong> An incremental export is a delta, not a complete record of the project. A typical routine is one full export, then one incremental export a month, all in the same folder.</li>
+<li>Issues deleted in Jira since the last snapshot are not detected; they simply stay in the earlier snapshot.</li>
+<li>Incremental is available on the project page only, not for Export by JQL.</li>
+<li>An incremental export is itself a partial snapshot: it is listed as &quot;(incremental)&quot; in Previous snapshots, does not change the Coverage date and is never used as the baseline for the next incremental export — the baseline is always the last complete snapshot.</li>
+<li>If you are not sure whether your set of ZIPs is complete, run a full export.</li>
+</ul>
+<h2>Previous snapshots</h2>
+<p>Below the export options, the project page lists every recorded snapshot of this project: date (with &quot;(incremental)&quot;, &quot;(filtered)&quot; if a JQL filter was used, &quot;(sample)&quot; for sample mode and &quot;(N errors)&quot; if any), mode (<strong>Everything</strong> or <strong>Attachments only</strong>, with &quot;(partial)&quot; for every export that is not a complete snapshot), issues, attachments, size, parts and the first characters of the manifest&#39;s SHA-256. Two buttons:</p>
+<ul>
+<li><strong>Download evidence CSV</strong> saves the whole history as a CSV file (project, time, mode, counts, manifest hash, sample flag, JQL, errors, account ID of the person who ran it) — what an auditor asks for.</li>
+<li><strong>Delete log for this project</strong> removes all of this project&#39;s records from the snapshot log, immediately and permanently. The ZIPs on your disk are untouched; the project shows as &quot;Never exported&quot; on the Coverage overview until the next export.</li>
+</ul>
+<h2>The Project Snapshot page (Apps → Project Snapshot)</h2>
+<p>Version 1.1 added a page under the <strong>Apps</strong> menu; since 1.3 it has four tabs.</p>
+<h3>Coverage</h3>
+<p>Lists every project you can see with its most recent <strong>complete</strong> snapshot (Everything, no filter, not incremental, licensed, zero errors): date, issues, attachments and size. Partial exports never appear here. Pick a threshold — <strong>30, 90, 180 or 365 days</strong> — and the page flags each project as <strong>Never exported</strong>, <strong>Stale</strong> (last snapshot older than the threshold) or fresh, with counts at the top and a filter to show only the flagged ones. The <strong>Open</strong> button takes you straight to that project&#39;s export page. <strong>Download coverage CSV</strong> saves the table (one row per project with its latest snapshot, status and age in days) for reporting.</p>
+<p>The overview is built from the snapshot log, which started with version 1.1.0. Exports made with earlier versions are not in it, so a project you exported before upgrading shows as &quot;Never exported&quot; until you export it again.</p>
+<h3>Export by JQL</h3>
+<p>Paste any <strong>bounded</strong> JQL query (one that Jira can count — for example <code>project in (FIN, OPS) AND created &gt;= startOfMonth()</code>; a trailing ORDER BY is ignored, issues are exported oldest first) and choose a mode:</p>
+<ul>
+<li><strong>Everything</strong> — the same output as a project export, for the matching issues: <code>issues/&lt;KEY&gt;.json</code> with all fields, comments, worklogs, changelog and links, attachment files, <code>issues.csv</code>, <code>manifest.json</code> and, if something failed, <code>errors.json</code>. Issues can come from several projects; <code>project.json</code> is omitted.</li>
+<li><strong>Attachments only</strong> — the attachment files under <code>attachments/&lt;KEY&gt;/&lt;id&gt;-&lt;filename&gt;</code> plus <code>issues.csv</code> (the same 16 columns as always: key, id, type, status, summary, assignee, reporter, priority, created, updated, resolved, labels, components, fix versions, parent, attachment count), <code>manifest.json</code> and, if something failed, <code>errors.json</code>. Useful for this month&#39;s invoices, last quarter&#39;s closed tickets for an auditor, or one client&#39;s deliverables for a hand-over.</li>
+</ul>
+<p>Part size, progress, cancel, the HTML archive and verification work exactly as on the project page. The incremental option is not offered here, and JQL exports are not recorded in the snapshot log (they belong to no single project).</p>
+<h3>Verify a snapshot</h3>
+<p>Choose one or more downloaded ZIP parts with the file chooser. For each part the app reads the whole file into memory, unpacks it in your browser, reads its <code>manifest.json</code> and checks that every listed file is present, has the listed size and has the listed SHA-256 hash; files not in the manifest are reported as extra. The result is <strong>Verified</strong>, or <strong>Mismatch</strong> with a table of the files and the reason (missing, size, hash). Nothing is uploaded and no Jira request is made. Large parts take a while because every byte is hashed, and because the whole part is unpacked in memory a 1000 MB part needs a few GB of free memory in the browser — use the command line (below) for very large parts on small machines. Each part is checked against its own manifest, so verify every part of a multi-part snapshot.</p>
+<h3>Policy (since 1.3)</h3>
+<p>A snapshot policy says <strong>&quot;every project needs a snapshot no older than N days&quot;</strong>, and the app enforces it for you: once a week it checks every project and reminds you about the ones that fall behind. Only Jira admins (global permission <em>Administer Jira</em>) can change it; everyone else sees whether a rule is in force.</p>
+<ol>
+<li>Tick <strong>Policy switched on (weekly check)</strong>.</li>
+<li>Choose how old a snapshot may be: <strong>30, 60, 90, 180 or 365 days</strong>.</li>
+<li>Leave <strong>Also flag projects that have never been exported</strong> ticked unless you only care about projects that already have a snapshot.</li>
+<li><strong>Create reminder tasks in project</strong> — pick the project where the app should create its reminder tasks, typically a small admin or operations project. Leave it empty and the check only flags projects in Coverage, without creating anything.</li>
+<li>Tick <strong>Assign reminder tasks to me</strong> if the tasks should be assigned to you; Jira&#39;s normal notifications then tell you when one is created. The app itself never sends e-mail.</li>
+<li><strong>Ignore these projects</strong>: keys of projects that should not be checked (sandboxes, archived projects), separated by commas or spaces; the list is tidied when you save. The reminder project itself is never checked.</li>
+<li><strong>Save</strong>. Then click <strong>Run check now</strong> to run the same check immediately and see the summary: projects checked, projects behind the policy (with their keys), reminder tasks created, tasks skipped because one was still open, errors.</li>
+</ol>
+<p>From then on the check runs <strong>once a week</strong> (only on sites with an active licence or the free tier). Only complete snapshots satisfy the policy — an attachments-only, filtered, incremental or sample export does not stop a reminder. For every project behind the policy it creates <strong>one Jira task</strong> in the reminder project — summary <code>Snapshot due: KEY (name)</code>, label <code>project-snapshot-reminder</code>, a description with the reason (&quot;never exported&quot; or &quot;last snapshot is 143 days old; the policy allows 90 days&quot;) and a link straight to that project&#39;s export page. At most 20 tasks per run; while a task for a project is still open no second one is created. <strong>Close the task once the snapshot is done</strong> — the next check sees it is closed and, when the project falls behind again, creates a fresh one.</p>
+<p>Two things to know:</p>
+<ul>
+<li>The weekly check runs without a signed-in user, and Jira shows an app only the projects it was explicitly granted. So the check uses the <strong>project list the app remembered the last time an admin opened the Coverage or Policy tab</strong>. Open one of them after creating new projects, and open one at least once before expecting the first weekly run to find anything.</li>
+<li>The reminder project must have a <strong>Task-like issue type</strong> (the app uses the type named &quot;Task&quot; or, failing that, the project&#39;s first standard issue type) and the app must be allowed to create issues there. Projects with only sub-task or epic types, or with required custom fields on the create screen, cannot receive reminders; the last-run summary shows the error.</li>
+</ul>
+<h2>The snapshot log</h2>
+<p>After every finished project export the app stores one small record in Forge storage inside your Atlassian site: project id, key and name; mode; time; the Atlassian account ID of the person who ran it; counts (issues, attachments, bytes, parts, errors); the SHA-256 of the manifest; whether sample mode was on; the JQL used; the incremental cut-off, if any; and whether the export was a complete snapshot. <strong>Never</strong> issue content, comments or attachments. At most 50 records are kept per project; older ones are deleted automatically. Nobody outside your Atlassian site can read it, including us. Uninstalling the app removes it under Atlassian&#39;s Forge retention rules.</p>
+<p>Since 1.3 the same storage also holds the snapshot policy settings, the summary of the last check, the app&#39;s own page ids (so reminder links point at the right page), the list of your projects (id, key and name, as seen by the admin who last opened Coverage or Policy) and the key of each reminder task the app created. Still metadata only.</p>
+<h2>What&#39;s in the ZIP</h2>
+<pre><code>&lt;KEY&gt;-snapshot-&lt;timestamp&gt;-part01.zip
+├── README.txt                what is inside and how to verify (every part)
+├── project.json              project details and configuration:
+│                             issue types, statuses, components, versions,
+│                             roles, link types, field definitions (part 1)
+├── index.html                readable archive: sortable, searchable list of all
+│                             issues; opens offline in any browser (last part)
+├── issues/
+│   ├── &lt;KEY&gt;-1.json          one file per issue: all fields, comments,
+│   ├── &lt;KEY&gt;-2.json          worklogs, changelog, links, attachment list
+│   ├── &lt;KEY&gt;-1.html          the same issue as a readable page
+│   └── …
+├── attachments/
+│   └── &lt;KEY&gt;-17/
+│       └── 10023-design.pdf  original attachment bytes, named &lt;id&gt;-&lt;filename&gt;
+├── issues.csv                spreadsheet-friendly index of all issues (last part)
+├── errors.json               anything that could not be fetched — only present
+│                             when something failed (last part)
+└── manifest.json             every file in this part with size and SHA-256 hash
+                              (every part; the last one also lists all parts)
+</code></pre>
+<p>The file name is <code>&lt;KEY&gt;-snapshot-&lt;UTC timestamp&gt;-partNN.zip</code>, for example <code>DEMO-snapshot-20260929T140200Z-part01.zip</code>. With multiple parts, <code>README.txt</code> and <code>manifest.json</code> are in <strong>every</strong> part, <code>project.json</code> in the <strong>first</strong>, and <code>index.html</code>, <code>issues.csv</code> and (if needed) <code>errors.json</code> in the <strong>last</strong>; each part&#39;s manifest covers that part&#39;s files. Issues and attachments are distributed across parts in order; a part holds at most 60,000 files. In Attachments only mode there is no <code>index.html</code> and no per-issue file. An incremental export has the same layout, and its README and manifest say INCREMENTAL.</p>
+<h2>Verifying an export later</h2>
+<p>In the app: <strong>Apps → Project Snapshot → Verify a snapshot</strong>, choose the ZIP part(s) with the file chooser. Everything is checked in your browser (see above).</p>
+<p>On the command line, on macOS or Linux:</p>
+<pre><code>unzip -q KEY-snapshot-20260929T140200Z-part01.zip -d snapshot
+cd snapshot
+# compare hashes listed in manifest.json with the files on disk
+jq -r &#39;.files[] | &quot;\(.sha256)  \(.path)&quot;&#39; manifest.json | sha256sum -c
+</code></pre>
+<p>On Windows, use <code>Get-FileHash -Algorithm SHA256 &lt;file&gt;</code> in PowerShell and compare with the value in <code>manifest.json</code>.</p>
+<h2>Licensing in one paragraph</h2>
+<p>Sites with 1–10 Jira users: free. Larger sites: 30-day free trial, then a subscription through Atlassian. Without a licence the app runs in <strong>sample mode</strong> — 25 issues, no attachments, and the Attachments only mode is disabled — so you can always check the output format. See the FAQ for details.</p>
+<h2>Where to get help</h2>
+<ul>
+<li>FAQ: <a href="https://figflows.github.io/project-snapshot/faq.html">https://figflows.github.io/project-snapshot/faq.html</a></li>
+<li>Troubleshooting: <a href="https://figflows.github.io/project-snapshot/troubleshooting.html">https://figflows.github.io/project-snapshot/troubleshooting.html</a></li>
+<li>E-mail: <a href="mailto:andre@figflows.com">andre@figflows.com</a> — Mon–Fri 09:00–17:00 Stockholm time; we answer within one business day in practice, five at most.</li>
+</ul>
+</main><footer>Project Snapshot for Jira · by FigFlows, Umeå, Sweden · documentation</footer></body></html>

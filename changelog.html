@@ -1,0 +1,135 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Changelog · Project Snapshot for Jira</title><link rel="icon" href="icon.svg"><link rel="stylesheet" href="style.css"></head><body><header><div class="bar"><a class="brand" href="index.html"><img src="icon.svg" alt="">Project Snapshot for Jira</a><nav><a href="index.html">Getting started</a><a href="faq.html">FAQ</a><a href="troubleshooting.html">Troubleshooting</a><a href="changelog.html" class="on">Changelog</a><a href="privacy.html">Privacy policy</a><a href="terms.html">Terms of use</a><a href="data-handling.html">Data handling</a></nav></div></header><main><h1>Changelog — Project Snapshot for Jira</h1>
+<p>Format: version, date, then Added / Changed / Fixed / Security. Scope, egress or storage changes will always be called out under <strong>Security</strong> and treated as major versions.</p>
+<h2>1.3.0 (Marketplace release build) — 2026-09-30</h2>
+<p>Fixes from a third, independent review of the 1.3.0 development build; this is the build submitted to the Marketplace. 101 unit tests. No scope, egress or storage-scope change.</p>
+<h3>Fixed</h3>
+<ul>
+<li>ZIP writing is now serialised across the parallel download lanes, so a file can no longer be missing from a part&#39;s manifest or land in the wrong part; a part also closes at 60,000 files (the ZIP format without ZIP64 cannot hold more), not only at the chosen size.</li>
+<li><strong>Complete snapshot</strong> rule: only an export in mode Everything, without a JQL filter, not incremental, on a licensed site, with zero errors, updates the Coverage date, satisfies the policy or serves as the incremental baseline. All other exports stay in Previous snapshots marked &quot;(partial)&quot;.</li>
+<li>The incremental cut-off is written in the user&#39;s Jira profile time zone (with a one-hour margin; 26 hours if unknown), so a profile time zone different from the browser&#39;s can no longer skip issues.</li>
+<li>A run stops as Failed after 25 consecutive item failures or when a search page returns 401/403, instead of finishing &quot;Done&quot; with thousands of errors; the Done line, the manifest and the log count issues actually written.</li>
+<li>Sample mode caps on the issues actually returned, never on the estimate (a low estimate could export nothing).</li>
+<li>Reminder tasks created by the <strong>weekly</strong> run now link to the project&#39;s export page (the page ids are stored when an admin saves the policy); duplicate detection no longer breaks on project names with quotes.</li>
+<li>The <strong>Ignore these projects</strong> field accepts typing (free text, tidied on save).</li>
+<li>Cancelled requests no longer print errors to the browser console.</li>
+<li>JQL filters with unbalanced parentheses or quotes are refused before the run; a multi-line ORDER BY is stripped correctly.</li>
+</ul>
+<h3>Changed</h3>
+<ul>
+<li>The progress panel lists <strong>saved</strong> parts only, the pre-run hint says that the first part downloads automatically and later parts need a click, the browser warns before the tab is closed during an export, and a failed write to the snapshot log shows a red banner.</li>
+<li>Previous snapshots show the mode as &quot;Everything&quot; / &quot;Attachments only&quot;; Coverage links to product-discovery projects correctly; policy errors are shown as a list; the Apps page lead text mentions the Policy tab.</li>
+<li>Accessibility: screen readers hear phase changes only (not every issue), tabs announce their panel, table headers are marked up.</li>
+<li><code>npm run deploy:dev</code> / <code>deploy:prod</code> run the checks and the build before deploying.</li>
+<li>Removed the unused <code>latest</code> resolver; the app reads the history and picks the newest complete record.</li>
+</ul>
+<h2>1.3.0 (development build) — 2026-09-29</h2>
+<p>Forge app version 4.x (major, because a scope was added). 78 unit tests at release. Deployed to the development environment and live-tested on the developer site on 2026-09-29.</p>
+<h3>Added</h3>
+<ul>
+<li><strong>Snapshot policy</strong> — a fourth tab, <strong>Policy</strong>, on Apps → Project Snapshot, for Jira admins: switch on &quot;every project needs a snapshot no older than 30 / 60 / 90 / 180 / 365 days&quot;, include or exclude never-exported projects, choose a reminder project (dropdown), &quot;Assign reminder tasks to me&quot;, an ignore list of project keys, <strong>Save</strong>, <strong>Run check now</strong> and a last-run summary.</li>
+<li><strong>Weekly check</strong> (Forge <code>scheduledTrigger</code>, licensed sites only): compares the snapshot log with the project list remembered from the last admin visit to Coverage or Policy, flags projects behind the policy, and — only if a reminder project is chosen — creates one Jira task per project: summary <code>Snapshot due: KEY (name)</code>, label <code>project-snapshot-reminder</code>, description with the reason and a link to that project&#39;s export page, optional assignee. At most 20 tasks per run; no duplicate while a task for that project is open. Jira&#39;s own notifications inform the assignee; the app sends no e-mail.</li>
+<li>Coverage and Policy pages remember the project list (id, key, name, type) in app storage so the check, which runs without a user, knows which projects exist.</li>
+</ul>
+<h3>Changed</h3>
+<ul>
+<li>App version string in <code>manifest.json</code> / <code>README.txt</code> inside exports is now 1.3.0.</li>
+<li>The Coverage and Policy tabs send the project list they display to the app&#39;s storage (<code>rememberProjects</code>) on every visit.</li>
+</ul>
+<h3>Security</h3>
+<ul>
+<li><strong>New scope <code>write:jira-work</code></strong>, used by exactly one function (the policy check) for exactly one operation: <code>POST /rest/api/3/issue</code> in the chosen reminder project, only while the policy is on and a reminder project is set. No other write anywhere; with the policy off the app behaves as 1.2. Justification in the Marketplace Privacy &amp; Security tab and at <a href="https://figflows.github.io/project-snapshot/data-handling.html">https://figflows.github.io/project-snapshot/data-handling.html</a>.</li>
+<li>The policy check calls Jira as the app (<code>asApp()</code>) because it runs on a schedule without a user: create the reminder task, read the status of a task it created earlier, search the reminder project by label, read <code>serverInfo</code> and the reminder project&#39;s issue types. It reads no issue content of the projects it checks.</li>
+<li>Changing the policy and running the check by hand require the Jira global permission <strong>Administer Jira</strong>, verified server-side (<code>mypermissions?permissions=ADMINISTER</code>); the form is hidden from other users.</li>
+<li>New storage keys, metadata only: <code>policy</code>, <code>policy:lastRun</code>, <code>projects</code> (id, key, name, type), <code>reminder:&lt;projectId&gt;</code> (issue key). Still <code>read:jira-work</code> for all exports, still no egress permissions, no remotes, no external hosts, no e-mail. Runs on Atlassian eligibility confirmed by Forge on the 4.x development deploy.</li>
+</ul>
+<h3>Known limitations</h3>
+<ul>
+<li>The check only knows projects that an admin&#39;s Coverage or Policy visit remembered; open one of those tabs after creating projects.</li>
+<li>The reminder project needs a standard, Task-like issue type without required custom fields on its create screen, and the app must be allowed to create issues there; errors appear in the last-run summary.</li>
+<li>Closed reminder tasks are not reopened; a project still behind the rule at the next run gets a new task.</li>
+<li>The check does not run in sample mode (unlicensed sites).</li>
+</ul>
+<p>Release summary for Marketplace (≤ 80 chars): <em>Snapshot policy: weekly check flags stale projects, creates reminder tasks.</em></p>
+<h2>1.2.0 — 2026-09-29</h2>
+<p>Forge app version 3.2.0 (minor: no scope, egress or storage-scope change). 73 unit tests. Live-tested on the developer site on 2026-09-29.</p>
+<h3>Added</h3>
+<ul>
+<li><strong>Readable HTML archive</strong> in every full export: <code>index.html</code> (sortable, searchable list of all issues; inline script only, no external resources) and <code>issues/&lt;KEY&gt;.html</code> per issue with fields (custom field names resolved from <code>project.json</code>), description, comments, worklogs, change history, links and links to the attachment files. Opens offline in any browser. Optional (on by default); not produced in Attachments only mode.</li>
+<li><strong>Incremental export</strong> on the project page: &quot;Incremental: only issues updated since the last snapshot&quot; adds <code>updated &gt;= (last snapshot − 1 hour)</code> to the JQL; <code>README.txt</code> and <code>manifest.json</code> are marked INCREMENTAL. Keep incremental ZIPs together with the full snapshot they extend.</li>
+<li><strong>Verify a snapshot</strong> tab on Apps → Project Snapshot: choose one or more downloaded ZIP parts; every file&#39;s presence, size and SHA-256 is checked against the part&#39;s <code>manifest.json</code> in the browser; result Verified or Mismatch with the reason per file. Nothing is uploaded.</li>
+<li><strong>Previous snapshots</strong> panel on the project page: history from the snapshot log (date, mode, counts, size, parts, manifest hash), <strong>Download evidence CSV</strong>, <strong>Delete log for this project</strong>.</li>
+<li><strong>Download coverage CSV</strong> on the Coverage tab.</li>
+</ul>
+<h3>Changed</h3>
+<ul>
+<li>App version string in <code>manifest.json</code> / <code>README.txt</code> inside exports is now 1.2.0; the manifest records whether the HTML archive was included and whether the export was incremental.</li>
+<li>The in-app &quot;what you get&quot; list mentions <code>index.html</code>.</li>
+</ul>
+<h3>Security</h3>
+<ul>
+<li>Scopes unchanged: <code>read:jira-work</code> and <code>storage:app</code>. No egress permissions, no remotes, no external hosts. Runs on Atlassian eligibility confirmed by Forge on deploy of 3.2.0.</li>
+<li>HTML archive: all issue content is escaped; links limited to <code>http(s)</code> and <code>mailto</code>; no external resources.</li>
+<li>Verification and CSV generation run entirely in the browser.</li>
+<li>Resolver gains <code>latest</code> (most recent record of a project, for the incremental option; removed again after 1.3.0 — the UI now uses <code>history</code>) and <code>deleteProjectLog</code> (removes a project&#39;s log records on request). Still no Jira calls, never any issue content.</li>
+</ul>
+<h3>Known limitations</h3>
+<ul>
+<li>Incremental exports do not detect issues deleted since the previous snapshot.</li>
+<li>Incremental is available for project exports only, not for Export by JQL.</li>
+<li>Verifying very large parts takes time; every byte is hashed in the browser.</li>
+</ul>
+<p>Release summary for Marketplace (≤ 80 chars): <em>Readable HTML archive, incremental exports, verify tool, snapshot history CSVs.</em></p>
+<h2>1.1.0 — 2026-09-29</h2>
+<p>Forge app version 3.0.0 (major, because a scope was added). Live-tested on the developer site on 2026-09-29.</p>
+<h3>Added</h3>
+<ul>
+<li><strong>Apps → Project Snapshot</strong> global page with two tabs.</li>
+<li><strong>Coverage</strong> tab: every project the user can see with its most recent snapshot (date, issues, attachments, size); projects flagged <strong>Never exported</strong> or <strong>Stale</strong> after a chosen threshold (30 / 90 / 180 / 365 days), with counts, a filter and an <strong>Open</strong> button to the project&#39;s export page.</li>
+<li><strong>Export by JQL</strong> tab: export any bounded JQL query as <strong>Everything</strong> (per-issue JSON with comments, worklogs, change history, links, attachment files) or <strong>Attachments only</strong> (attachment files plus an <code>issues.csv</code> index).</li>
+<li><strong>Attachments only</strong> mode on the project settings page.</li>
+<li><strong>Snapshot log</strong>: after each finished export a small record (project id/key/name, mode, timestamp, account id of the person who ran it, counts of issues/attachments/bytes/parts/errors, manifest SHA-256, sample-mode flag, JQL) is stored in Forge Key-Value Storage. No issue content, comments or attachments. At most 50 records per project; older ones are deleted automatically.</li>
+</ul>
+<h3>Changed</h3>
+<ul>
+<li>Sample mode unchanged (25 issues, no attachments); Attachments only is disabled in sample mode.</li>
+<li>App version string in <code>manifest.json</code> / <code>README.txt</code> inside exports is now 1.1.0.</li>
+</ul>
+<h3>Security</h3>
+<ul>
+<li>New scope <code>storage:app</code>, used only for the snapshot log. Forge-hosted storage is inside the customer&#39;s Atlassian site and follows its data-residency location; Atlassian removes it after uninstall per Forge&#39;s retention rules.</li>
+<li>Still <code>read:jira-work</code> for Jira. Still no egress permissions, no remotes, no external hosts. Runs on Atlassian eligibility confirmed by Forge on deploy.</li>
+<li>One Forge resolver function (<code>src/index.js</code>) writes and reads the log; it makes no Jira calls and never receives issue content.</li>
+</ul>
+<h3>Known limitations</h3>
+<ul>
+<li>The log started with 1.1.0; exports made with 1.0.x are not in it, so those projects show as never exported until exported again.</li>
+<li>Deleting individual log records from inside the app is not yet possible (uninstall removes the log). Per-project deletion was added in 1.2.0.</li>
+</ul>
+<p>Release summary for Marketplace (≤ 80 chars): <em>Export any JQL, attachments-only mode, snapshot log and coverage overview.</em></p>
+<h2>1.0.0 — 2026-09-29 (internal, never published)</h2>
+<p>Initial release.</p>
+<h3>Added</h3>
+<ul>
+<li>One page under <strong>Project settings → Project Snapshot</strong> for project admins.</li>
+<li>Complete export of one Jira Cloud project: every issue with all fields, comments, worklogs, full change history, issue links, attachment files, and project configuration (issue types, statuses, components, versions, roles, link types, field definitions).</li>
+<li>Output as ZIP parts built in the browser: <code>project.json</code>, <code>issues/&lt;KEY&gt;.json</code>, <code>attachments/&lt;KEY&gt;/&lt;id&gt;-&lt;filename&gt;</code>, <code>issues.csv</code>, <code>errors.json</code>, <code>manifest.json</code> with SHA-256 per file.</li>
+<li>Part size selector: 250, 500 or 1000 MB.</li>
+<li>Optional JQL filter.</li>
+<li>Cancel button; parts already written are kept.</li>
+<li>Automatic back-off and retry on Jira rate limiting (HTTP 429).</li>
+<li>Sample mode when unlicensed: first 25 issues, no attachments.</li>
+</ul>
+<h3>Security</h3>
+<ul>
+<li>Scope: <code>read:jira-work</code> only. No write scope, no user scope.</li>
+<li>No backend, no Forge storage, no egress permissions, no remotes. Eligible for Runs on Atlassian (<code>forge eligibility</code> output attached to the release).</li>
+<li>All API calls run as the signed-in user.</li>
+</ul>
+<h3>Known limitations</h3>
+<ul>
+<li>The export runs in the browser tab; closing the tab stops it.</li>
+<li>No restore into Jira.</li>
+<li>Every part is an ordinary browser download (the app cannot choose a folder). Tested in Chrome and Edge; Firefox and Safari not yet verified.</li>
+</ul>
+<p>Release summary for Marketplace (≤ 80 chars): <em>Initial release: complete per-project export to ZIP, built in the browser.</em></p>
+</main><footer>Project Snapshot for Jira · by FigFlows, Umeå, Sweden · documentation</footer></body></html>

@@ -1,0 +1,235 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Troubleshooting · Project Snapshot for Jira</title><link rel="icon" href="icon.svg"><link rel="stylesheet" href="style.css"></head><body><header><div class="bar"><a class="brand" href="index.html"><img src="icon.svg" alt="">Project Snapshot for Jira</a><nav><a href="index.html">Getting started</a><a href="faq.html">FAQ</a><a href="troubleshooting.html" class="on">Troubleshooting</a><a href="changelog.html">Changelog</a><a href="privacy.html">Privacy policy</a><a href="terms.html">Terms of use</a><a href="data-handling.html">Data handling</a></nav></div></header><main><h1>Troubleshooting — Project Snapshot for Jira</h1>
+<p>Start with <code>errors.json</code> in the last ZIP part, and with the progress panel. Almost every problem is explained by one of them.</p>
+<h2>The page is not in Project settings</h2>
+<ul>
+<li>You need <strong>project admin</strong> on that project. Ask a Jira admin to add you to the Administrators role, or run the export as someone who has it.</li>
+<li>The app may not be installed, or a site admin has restricted which users can access it. Check Atlassian Administration → Apps → Manage apps.</li>
+</ul>
+<h2>Coverage shows &quot;Never exported&quot; for a project I exported before</h2>
+<p>The snapshot log that feeds the Coverage overview started with version 1.1.0. Exports made with 1.0.x were not recorded, so those projects show as never exported. Export the project once with 1.1 and it will be listed with that date. The ZIPs you made earlier are unaffected.</p>
+<h2>Coverage shows an older date than my last export</h2>
+<p>Coverage shows the last <strong>complete</strong> snapshot: mode Everything, no JQL filter, not incremental, licensed, zero errors. An attachments-only, filtered, incremental or sample export, or one that finished with errors, is listed in the project&#39;s <strong>Previous snapshots</strong> marked &quot;(partial)&quot; but does not move the Coverage date and does not satisfy the policy. Run a complete export.</p>
+<h2>The export said Done but a red banner says it could not be recorded</h2>
+<p>The ZIP files are complete and valid; only the write to the snapshot log failed (a temporary Forge problem, or you lost Browse permission on the project). Coverage and Previous snapshots do not show this export. Run it again later if you need it on record, or keep the manifest&#39;s SHA-256 shown under the progress panel as your evidence.</p>
+<h2>Coverage is missing a project</h2>
+<p>The overview lists only projects your account can browse. Ask a Jira admin for Browse Projects permission on the missing project, or ask someone who has it to open the overview.</p>
+<h2>The Incremental checkbox is not shown</h2>
+<p>It appears only when the snapshot log has at least one <strong>complete</strong> snapshot of this project (mode Everything, no filter, not incremental, licensed, zero errors; made with version 1.1 or later, and not deleted). Run one complete export; the next time the page opens, the option is there with that snapshot&#39;s date. It is offered on the project page only, not on Export by JQL.</p>
+<h2>An incremental export missed an issue</h2>
+<p>The incremental export fetches issues whose <code>updated</code> date is at or after the last <strong>complete</strong> snapshot&#39;s time <strong>minus one hour</strong>, with the cut-off written in your Jira profile&#39;s time zone (26 hours if the app cannot read it). An issue is not in it if:</p>
+<ul>
+<li>it was not updated since then (it is in the earlier full snapshot — keep the ZIPs together);</li>
+<li>it was deleted or moved out of the project (deletions are never detected; the old copy is in the earlier snapshot);</li>
+<li>your account lost permission to see it (check <code>errors.json</code> and Jira&#39;s issue security);</li>
+<li>it was updated between the last complete snapshot and a later partial export — the baseline is always the last complete snapshot, never a filtered, attachments-only, sample or incremental one, so nothing is skipped, but the same issue may appear in two incremental ZIPs.</li>
+</ul>
+<p>If you are not sure your set of ZIPs is complete, run a <strong>full</strong> export. A full export is always the safe answer; incremental ones are an optimisation for large projects.</p>
+<h2><code>index.html</code> shows nothing, or the links do not work</h2>
+<ul>
+<li>Open it <strong>after unpacking</strong>, not from inside the ZIP viewer or the browser&#39;s ZIP preview. Inside a ZIP the pages cannot reach each other or the attachments.</li>
+<li>Unpack <strong>all parts into one folder</strong>. <code>index.html</code> is in the last part; the issue pages and attachments are spread across all parts. Missing pages or attachment links mean a part is missing from the folder.</li>
+<li>If the list is empty but the page loads, the export was <strong>Attachments only</strong> (no HTML archive is produced in that mode) or the HTML option was unticked; the JSON files are still complete.</li>
+<li>The search box needs JavaScript enabled for <code>file://</code> pages; the page itself contains no external script.</li>
+</ul>
+<h2>Verify a snapshot says &quot;Mismatch&quot;</h2>
+<p>The result lists each file with a reason:</p>
+<table>
+<thead>
+<tr>
+<th>Reason</th>
+<th>Meaning</th>
+<th>What to do</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>missing</strong></td>
+<td>A file listed in the manifest is not in the ZIP</td>
+<td>Re-download the part. If the download tool truncated it, the file size differs from the one on the export summary</td>
+</tr>
+<tr>
+<td><strong>size</strong></td>
+<td>The file is there but its size differs</td>
+<td>Re-download; if it persists, the file was altered after export</td>
+</tr>
+<tr>
+<td><strong>hash</strong></td>
+<td>Same size, different SHA-256</td>
+<td>The content was changed after export — re-download; if the original download also says Mismatch, treat the archive as altered</td>
+</tr>
+<tr>
+<td><strong>extra</strong></td>
+<td>A file in the ZIP is not in the manifest</td>
+<td>Something was added to the ZIP after export</td>
+</tr>
+<tr>
+<td>&quot;no manifest.json&quot;</td>
+<td>The file is not a snapshot part, or it is a ZIP of the unpacked folder</td>
+<td>Verify the original downloaded part, not a re-zipped folder</td>
+</tr>
+</tbody></table>
+<p>The Verify tab reads the whole part into memory; if the browser tab runs out of memory on a very large part, verify it on the command line instead (see &quot;Verifying an old archive&quot;). A transfer error (partial download, a sync tool, an e-mail gateway) is the usual cause of a Mismatch. A Mismatch that survives a fresh download means the file on disk is not the one the app wrote, and the manifest hash recorded in the snapshot log (Previous snapshots, evidence CSV) is the reference. Each part is checked against its own manifest; verify every part.</p>
+<h2>I got a &quot;Snapshot due&quot; task I did not expect</h2>
+<p>A Jira admin on your site switched the snapshot policy on (<strong>Apps → Project Snapshot → Policy</strong>) and chose the project the task is in as the reminder project. The task means the project named in its summary has no snapshot younger than the rule allows, or was never exported. Its description says which and links to the export page.</p>
+<ul>
+<li>If the reminder is right: run the export from the link and close the task.</li>
+<li>If the project should not be checked: a Jira admin adds its key to <strong>Ignore these projects</strong> on the Policy tab and saves.</li>
+<li>If nobody wants reminders: a Jira admin unticks <strong>Policy switched on</strong> (flags and tasks stop) or clears <strong>Create reminder tasks in project</strong> (flags in Coverage stay, no tasks). Existing tasks are not removed by the app; close or delete them like any other issue.</li>
+<li>If you are the assignee and did not ask to be: the admin who saved the policy ticked <strong>Assign reminder tasks to me</strong>; untick it and save.</li>
+</ul>
+<p>E-mails about these tasks come from Jira&#39;s notification scheme, not from the app.</p>
+<h2>The policy check found 0 projects</h2>
+<p>The weekly check runs without a signed-in user, and Jira shows an app only the projects it was explicitly granted — usually none. The check therefore uses the project list the app remembered the last time someone opened the <strong>Coverage</strong> or <strong>Policy</strong> tab. If nobody has opened either since the app was installed (or the list was empty), the check has nothing to compare.</p>
+<p>Open <strong>Apps → Project Snapshot → Coverage</strong> or <strong>Policy</strong> once <strong>as a Jira administrator</strong> (only administrators can update the remembered project list), then click <strong>Run check now</strong>. The summary should now show the number of projects checked. Repeat after creating new projects; the list is refreshed every time one of those tabs is opened.</p>
+<h2>No reminder tasks were created</h2>
+<p>Check the last-run summary on the Policy tab, top to bottom:</p>
+<table>
+<thead>
+<tr>
+<th>Summary says</th>
+<th>Cause</th>
+<th>What to do</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>policy switched off</td>
+<td>The check ran but the policy is off</td>
+<td>Tick <strong>Policy switched on</strong>, save, run again</td>
+</tr>
+<tr>
+<td>0 projects checked</td>
+<td>No remembered project list</td>
+<td>See the previous entry</td>
+</tr>
+<tr>
+<td>N behind the policy, 0 tasks created, no reminder project</td>
+<td><strong>Create reminder tasks in project</strong> is empty; the check flags only</td>
+<td>Choose a reminder project and save</td>
+</tr>
+<tr>
+<td>N behind, 0 created, N already open</td>
+<td>A task for each project is still open</td>
+<td>Nothing to do — close the tasks when the snapshots are done</td>
+</tr>
+<tr>
+<td>error &quot;Reminder project X not readable: HTTP 404&quot;</td>
+<td>The app cannot see the reminder project (it was deleted, renamed, or the app&#39;s access to it was restricted)</td>
+<td>Choose another project</td>
+</tr>
+<tr>
+<td>error &quot;has no usable issue type&quot;</td>
+<td>The reminder project has only sub-task or epic types</td>
+<td>Use a project with a standard issue type such as Task</td>
+</tr>
+<tr>
+<td>error &quot;HTTP 400 …&quot; naming a field</td>
+<td>The create screen of the reminder project&#39;s Task type has required custom fields the app cannot fill</td>
+<td>Make those fields optional, or pick a plainer project</td>
+</tr>
+<tr>
+<td>error &quot;HTTP 403&quot;</td>
+<td>The app is not allowed to create issues in that project (permission scheme: Create Issues must include the app, or <strong>atlassian-addons-project-access</strong>)</td>
+<td>Ask a Jira admin to check the permission scheme of the reminder project</td>
+</tr>
+</tbody></table>
+<p>The reminder project needs a <strong>Task-like issue type</strong>: the app looks for an issue type named &quot;Task&quot; (also its German, French, Spanish and Swedish names) and otherwise takes the project&#39;s first standard type. The reminder project itself is never checked and never gets a reminder. Remember the check creates at most 20 tasks per run; on a site with more projects behind the rule, the rest follow in later runs. Projects deleted in Jira stay in the remembered list until a Jira admin opens Coverage or Policy again, so a deleted project can receive one more reminder whose export link no longer works — open one of those tabs after deleting projects.</p>
+<h2>The same project got a second reminder task</h2>
+<p>The app never creates a task for a project while an earlier one is <strong>open</strong> (any status outside the Done category), so a second task means the first was closed and the project was still behind the policy at the next check. Export the project and close the task; nothing more is created until the snapshot is older than the rule again. If you see two open tasks for one project, one was created outside the app (the app checks by label and summary text in the reminder project) — close the extra one and e-mail us the two keys if it repeats.</p>
+<h2>The Policy tab says &quot;Only Jira administrators can view or change the snapshot policy&quot;</h2>
+<p>Changing the policy and clicking <strong>Run check now</strong> require the Jira global permission <strong>Administer Jira</strong>; the app checks this on the server. Ask a Jira admin to set the policy, or to add you to a group with that permission. Coverage, Export by JQL and Verify are unaffected.</p>
+<h2>I deleted a project&#39;s log by mistake</h2>
+<p>The deletion is immediate and cannot be undone by the app. The ZIPs on disk are unaffected. Run a new export to record the project again; for the earlier dates, keep the earlier <code>manifest.json</code> files (they carry the export timestamp and app version).</p>
+<h2>&quot;Attachments only&quot; is greyed out</h2>
+<p>Attachments only needs a licence; in sample mode (no active licence) it is disabled because sample mode skips attachments. See the next entry.</p>
+<h2>Export by JQL refuses to start</h2>
+<p>The query must be <strong>bounded</strong> — Jira must be able to count it. Queries such as <code>ORDER BY created</code> on their own or ones that produce a JQL error are rejected. Test the JQL in the issue navigator first, then paste it. Very large results are fine but take time; consider splitting by date.</p>
+<h2>&quot;Unlicensed — sample mode&quot; banner</h2>
+<ul>
+<li>Jira reports no active licence for the app on this site. Check Atlassian Administration → Billing → Manage subscriptions. After activating, reload the page.</li>
+<li>If Billing says active and the banner stays: sign out and in again; if it persists, e-mail <a href="mailto:andre@figflows.com">andre@figflows.com</a> with screenshots of both.</li>
+</ul>
+<h2>Export stops or the browser tab crashes</h2>
+<p>Symptoms: &quot;Aw, Snap!&quot;, a frozen tab, or the progress panel stops advancing.</p>
+<ol>
+<li>Reduce the <strong>part size</strong> to 250 MB. The browser holds the part being built and the previous one (until you have saved the next) in memory, plus up to three attachments being downloaded.</li>
+<li>Use Chrome or Edge (the browsers we test with). Close other tabs and heavy applications.</li>
+<li>Keep the tab in the foreground. Some browsers throttle background tabs heavily.</li>
+<li>Split the export with JQL by date, e.g. <code>created &lt; 2025-01-01</code> and <code>created &gt;= 2025-01-01</code>.</li>
+<li>Check disk space: each part is written as it completes.</li>
+</ol>
+<p>Parts already saved before the crash are valid; you can export the remaining issues with a JQL filter such as <code>key &gt; KEY-1234</code> (use the last key in the saved part&#39;s manifest). Note that <code>index.html</code>, <code>issues.csv</code> and the parts list are only written by a run that finishes, so the second run produces its own index for its own issues; there is no resume that stitches both runs together.</p>
+<h2>The export stopped with &quot;Failed: Stopped after 25 consecutive failures&quot;</h2>
+<p>Twenty-five items in a row could not be fetched, which almost always means the session expired (HTTP 401), Jira is refusing the account (403) or the site is down (5xx). The part in progress was discarded; parts already saved are valid. Reload Jira, sign in again, and run the export again. The same stop happens immediately when a search page itself returns 401 or 403.</p>
+<h2>The export stopped with &quot;Failed: The JQL filter has unbalanced parentheses or quotes&quot;</h2>
+<p>The optional JQL filter is wrapped in parentheses and combined with <code>project = KEY</code>; a filter with an unmatched <code>(</code>, <code>)</code>, <code>&quot;</code> or <code>&#39;</code> is refused before any request is made. Fix the filter and try again.</p>
+<h2>Entries in <code>errors.json</code></h2>
+<p>Each entry has <code>scope</code> (issue, comments, worklogs, changelog, attachment, config or search), <code>key</code> (issue key or, for config, the section name), <code>attachmentId</code> where relevant, <code>status</code> (HTTP status, when there was one) and <code>message</code>. Note that the top level of <code>manifest.json</code> also has a field called <code>scope</code>; there it describes what was exported (project or JQL), not an error category. The file exists only when at least one item failed.</p>
+<table>
+<thead>
+<tr>
+<th>Status</th>
+<th>Meaning</th>
+<th>What to do</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>401</strong></td>
+<td>Session expired during a long export</td>
+<td>Reload Jira, sign in, run again</td>
+</tr>
+<tr>
+<td><strong>403</strong></td>
+<td>Your account can see the issue but not this item (issue security, restricted comment, portal-only attachment)</td>
+<td>Get access granted or run as a user who has it; re-run</td>
+</tr>
+<tr>
+<td><strong>404</strong></td>
+<td>Item no longer exists in Jira (deleted after the issue list was fetched, or moved)</td>
+<td>Check in Jira; if gone there, nothing to recover</td>
+</tr>
+<tr>
+<td><strong>429</strong></td>
+<td>Jira rate limit; the app backed off and retried but the item still failed</td>
+<td>Run again later; failed items will be fetched. Very busy sites: use JQL splits and export off-peak</td>
+</tr>
+<tr>
+<td><strong>5xx</strong></td>
+<td>Jira-side error</td>
+<td>Retry later; if persistent, check <a href="https://status.atlassian.com">https://status.atlassian.com</a></td>
+</tr>
+<tr>
+<td><strong>network</strong></td>
+<td>Connection dropped</td>
+<td>Check your connection; re-run</td>
+</tr>
+</tbody></table>
+<p>A re-run after fixing the cause fetches the previously failed items. Earlier parts remain valid.</p>
+<h2>Attachment file names look odd</h2>
+<p>Files are saved as <code>&lt;attachmentId&gt;-&lt;originalName&gt;</code> so that two attachments with the same name on one issue never collide. Characters that are illegal in file names on Windows or macOS are replaced with <code>_</code>. The original name is preserved in the issue JSON.</p>
+<h2>The issue total in the progress panel differs from the number of issues exported</h2>
+<ul>
+<li>The total is Jira&#39;s <strong>approximate</strong> count, taken when the export starts; it can lag behind recent changes. The Done line reports &quot;X of Y issues&quot;: X were written, Y were processed.</li>
+<li>Issues created or deleted during the export may be missed or 404&#39;d; both cases appear in <code>errors.json</code> if the app noticed.</li>
+<li>In sample mode the export is capped at the first 25 issues returned.</li>
+</ul>
+<h2>Custom field values look like IDs</h2>
+<p>That is how Jira returns them. <code>project.json</code> contains the field definitions (ID → name, type, allowed values where Jira provides them). Map them when you process the data.</p>
+<h2>The browser asks where to save every part (or doesn&#39;t ask at all)</h2>
+<p>Every part is an ordinary browser download; the app cannot pick a folder for you (the File System Access API is not available inside the Jira page). Where the file goes, and whether you are asked, is your browser&#39;s download setting (&quot;Ask where to save each file before downloading&quot;). The first part starts by itself; every further part waits for you to click <strong>Save part N</strong>, so you are never asked for several files at once. If the browser asks whether to allow multiple downloads from the site, allow it.</p>
+<h2>The export is slow</h2>
+<ul>
+<li>Attachments dominate. Speed is bounded by your connection and Jira&#39;s per-user rate limits.</li>
+<li>Run exports outside busy hours, avoid running other API-heavy integrations at the same time, and keep the tab in the foreground.</li>
+<li>Use JQL to export only what you need.</li>
+</ul>
+<h2>Verifying an old archive</h2>
+<p>In the app: <strong>Apps → Project Snapshot → Verify a snapshot</strong>, choose the ZIP part(s) with the file chooser. On the command line:</p>
+<pre><code>jq -r &#39;.files[] | &quot;\(.sha256)  \(.path)&quot;&#39; manifest.json | sha256sum -c
+</code></pre>
+<p>Any line other than <code>OK</code> means the file has changed or is missing since export.</p>
+<h2>Still stuck</h2>
+<p>E-mail <a href="mailto:andre@figflows.com">andre@figflows.com</a> with: site URL, project key (or the JQL used), browser and version, OS, a screenshot of the progress panel, and <code>errors.json</code>. Do not send the export itself or issue contents.</p>
+<h2>The <code>unzip</code> command complains about a filename</h2>
+<p>Attachment names with emoji or other non-Latin characters are stored in the ZIP as UTF-8. The old <code>unzip</code> tool bundled with macOS sometimes prints a write error for such names. Open the ZIP by double-clicking it in Finder, or use <code>ditto -x -k file.zip folder</code> on macOS, <code>tar -xf file.zip</code>, 7-Zip on Windows, or Python&#39;s <code>zipfile</code> module. The file contents and hashes are unaffected.</p>
+<h2>Only the first ZIP part was downloaded</h2>
+<p>Browsers allow one automatic download per click. For that reason the app pauses after each further part and shows a <strong>Save part N</strong> button; click it and the export continues. If a part still does not appear in your downloads folder, use <strong>Save part N again</strong> under the progress panel while the page is still open. Do not close or reload the tab before the last part is saved.</p>
+</main><footer>Project Snapshot for Jira · by FigFlows, Umeå, Sweden · documentation</footer></body></html>

@@ -1,0 +1,102 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Privacy policy · Project Snapshot for Jira</title><link rel="icon" href="icon.svg"><link rel="stylesheet" href="style.css"></head><body><header><div class="bar"><a class="brand" href="index.html"><img src="icon.svg" alt="">Project Snapshot for Jira</a><nav><a href="index.html">Getting started</a><a href="faq.html">FAQ</a><a href="troubleshooting.html">Troubleshooting</a><a href="changelog.html">Changelog</a><a href="privacy.html" class="on">Privacy policy</a><a href="terms.html">Terms of use</a><a href="data-handling.html">Data handling</a></nav></div></header><main><h1>Privacy Policy — Project Snapshot for Jira</h1>
+<p><strong>Version 1.2 — effective 2026-10-28</strong></p>
+<p>This policy explains what personal data FigFlows AB handles in connection with the app <em>Project Snapshot for Jira</em> (the &quot;App&quot;), why, and what your rights are. It is written to meet the EU General Data Protection Regulation (GDPR) and the Swedish Data Protection Act (2018:218).</p>
+<p>The short version: <strong>the App itself sends us nothing.</strong> The only personal data we ever process is what you send us when you contact support.</p>
+<h2>1. Who is responsible</h2>
+<p>The data controller for the processing described in this policy is:</p>
+<blockquote>
+<p>FigFlows AB
+Renmarkstorget 6, 903 26 Umeå
+Sweden
+Swedish organisation number: 559524-6710
+E-mail: <a href="mailto:andre@figflows.com">andre@figflows.com</a></p>
+</blockquote>
+<p>We are a small company with one developer. We have not appointed a Data Protection Officer because we are not required to under GDPR Article 37; questions go to the e-mail address above.</p>
+<h2>2. What the App does with your Jira data</h2>
+<p>The App runs inside Jira Cloud on Atlassian&#39;s Forge platform. When you start an export, the App reads the Jira project you selected through Atlassian&#39;s own API, builds ZIP files in your web browser&#39;s memory, and saves them to your computer.</p>
+<ul>
+<li><strong>We do not receive any of that data.</strong> The App has no server of its own, no database, no file storage and no connection to any host other than Atlassian&#39;s.</li>
+<li><strong>We do not use cookies, analytics, tracking pixels, local storage or session storage.</strong></li>
+<li><strong>We do not know who you are, which projects you export, or when.</strong> Atlassian tells us only aggregate licence information (number of installs and the customer&#39;s site name for billing).</li>
+<li><strong>The App keeps a small snapshot log inside your Atlassian site.</strong> Since version 1.1, after each finished export the App stores one record in Atlassian&#39;s Forge hosted storage: the project&#39;s id, key and name; the export mode; the time; the Atlassian account ID of the person who ran it; counts (issues, attachments, bytes, ZIP parts, errors); the SHA-256 hash of the manifest; whether sample mode was on; and the JQL used. It never contains issue content, comments or attachments. The only personal data in it is that account ID. The log is stored by Atlassian in the same location as your Jira site, is readable only by the App inside your site, and is not accessible to us. At most 50 records per project are kept; older ones are deleted automatically. When the App is uninstalled, Atlassian deletes the log under its Forge retention rules (soft-deleted, then destroyed on Atlassian&#39;s standard schedule).</li>
+<li><strong>Since version 1.3 the App also keeps your snapshot policy in the same storage.</strong> If a Jira administrator switches the policy on, the App stores the rule (how old a snapshot may be, which projects to ignore, which project receives reminders and, if the administrator chose to be assigned, that administrator&#39;s Atlassian account ID), a summary of the last weekly check, the list of your Jira projects (id, key and name — so the weekly check knows which projects exist) and the key of each reminder task it created. Names and keys of projects are the only new data; still no issue content, comments or attachments. This data is stored and deleted under the same Atlassian rules as the snapshot log.</li>
+<li><strong>The App can create reminder tasks in your Jira — and nothing else.</strong> When the policy is on and a reminder project is chosen, the App creates one Jira task per project that is behind the rule (&quot;Snapshot due: KEY&quot;, labelled <code>project-snapshot-reminder</code>, with the reason and a link to the export page). That is the only thing the App ever writes to Jira; it never changes, comments on or deletes anything. The tasks are ordinary issues in your own Jira. The App sends no e-mail; if the assignee receives one, it comes from Jira&#39;s own notification settings.</li>
+</ul>
+<p>Because the App does not transfer any Jira data to us, <strong>we are not a data processor for your Jira data</strong>, including the snapshot log, the policy and the project list. That data stays under your organisation&#39;s control and Atlassian&#39;s, under the terms you have with Atlassian. The exported ZIP files are on your own computer and are your responsibility from that moment on.</p>
+<h2>3. Personal data we do process: support requests</h2>
+<p>When you e-mail us or use our docs page contact form, we process:</p>
+<table>
+<thead>
+<tr>
+<th>Data</th>
+<th>Why</th>
+<th>Legal basis (GDPR Art. 6)</th>
+<th>Kept for</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Your name and e-mail address</td>
+<td>To answer you</td>
+<td>6(1)(b) — performance of a contract, or steps at your request before a contract; 6(1)(f) — our legitimate interest in providing support</td>
+<td>24 months after the last message in the thread, then deleted</td>
+</tr>
+<tr>
+<td>The content of your message, including any screenshots or log excerpts you choose to send</td>
+<td>To diagnose and solve the problem</td>
+<td>Same as above</td>
+<td>Same as above</td>
+</tr>
+<tr>
+<td>Your Jira site URL, if you give it</td>
+<td>To match your report to a licence</td>
+<td>Same as above</td>
+<td>Same as above</td>
+</tr>
+<tr>
+<td>Billing-related contact details relayed by Atlassian (e.g. for a refund query)</td>
+<td>To respond to the request</td>
+<td>6(1)(c) — legal obligation (bookkeeping) where applicable; otherwise 6(1)(b)</td>
+<td>7 years for bookkeeping records (Swedish Bookkeeping Act 1999:1078), otherwise as above</td>
+</tr>
+</tbody></table>
+<p><strong>Please do not send us exported ZIP files or issue contents.</strong> If we need to see data to diagnose a problem, we will ask for the smallest possible extract and tell you how to anonymise it. If you send more than we asked for, we delete it once the case is closed.</p>
+<h2>4. Where the data is and who else sees it</h2>
+<p>Support e-mail is handled by our e-mail provider, <strong>Microsoft 365 (Microsoft Ireland Operations Ltd)</strong>, acting as our processor under its standard data-processing terms. Servers are in <strong>the EU (Microsoft EU Data Boundary)</strong>.</p>
+<p>If our provider transfers data outside the EEA, the transfer is covered by the EU Standard Contractual Clauses and, where applicable, the EU–US Data Privacy Framework. Microsoft stores and processes our mailbox data within the EU Data Boundary; any residual transfer relies on the EU Standard Contractual Clauses in the Microsoft Products and Services Data Protection Addendum.</p>
+<p>We do not sell, rent or share personal data with anyone else. We may disclose it if a Swedish court or authority requires it by law.</p>
+<p><strong>There are no sub-processors for App data</strong>, because the App sends us no data. The snapshot log is held by Atlassian as part of the Forge platform under your own agreement with Atlassian.</p>
+<h2>5. Your rights</h2>
+<p>Under GDPR you can ask us to:</p>
+<ul>
+<li><strong>access</strong> the personal data we hold about you (Art. 15)</li>
+<li><strong>correct</strong> it (Art. 16)</li>
+<li><strong>delete</strong> it (Art. 17)</li>
+<li><strong>restrict</strong> how we use it (Art. 18)</li>
+<li><strong>receive</strong> it in a portable format (Art. 20)</li>
+<li><strong>object</strong> to processing based on legitimate interest (Art. 21)</li>
+</ul>
+<p>Write to <a href="mailto:andre@figflows.com">andre@figflows.com</a>. We answer within one month (Art. 12(3)). We may ask you to confirm your identity, usually by replying from the e-mail address the request concerns. There is no charge.</p>
+<h2>6. Complaints</h2>
+<p>You can complain to the Swedish supervisory authority:</p>
+<blockquote>
+<p><strong>Integritetsskyddsmyndigheten (IMY)</strong>
+Box 8114, 104 20 Stockholm, Sweden
+Telephone: +46 (0)8 657 61 00
+E-mail: <a href="mailto:imy@imy.se">imy@imy.se</a>
+Website: <a href="https://www.imy.se/en/">https://www.imy.se/en/</a>
+Complaint form: <a href="https://www.imy.se/en/individuals/forms-and-e-services/file-a-gdpr-complaint/">https://www.imy.se/en/individuals/forms-and-e-services/file-a-gdpr-complaint/</a></p>
+</blockquote>
+<p>If you live in another EU/EEA country you may instead complain to your own national authority.</p>
+<h2>7. Children</h2>
+<p>The App and our support are intended for business users. We do not knowingly collect data from anyone under 16.</p>
+<h2>8. Security</h2>
+<p>Support mail is stored only in our e-mail provider&#39;s system, protected by multi-factor authentication, and accessed by one person. We keep no copies elsewhere. The App itself carries no personal data of ours to protect; its security depends on Atlassian&#39;s platform and on your own computer once the ZIP files are saved.</p>
+<h2>9. Changes to this policy</h2>
+<p>We will update this policy when the App or our practices change. The version number and effective date at the top will change, and the previous version will remain available at <a href="https://figflows.github.io/project-snapshot/privacy.html/history">https://figflows.github.io/project-snapshot/privacy.html/history</a>. Material changes will also be noted in the App&#39;s changelog.</p>
+<p>Version 1.1 (App version 1.1.0): added the description of the snapshot log stored in Atlassian&#39;s Forge hosted storage. Nothing else changed.</p>
+<p>Version 1.2 (App version 1.3.0): added the snapshot policy — the App now also stores the policy settings and the list of your projects (names and keys) in Atlassian&#39;s Forge hosted storage, and can create reminder tasks in your Jira when a Jira administrator switches the policy on. Nothing else changed; we still receive no data from the App.</p>
+<h2>10. Contact</h2>
+<p>FigFlows AB, Renmarkstorget 6, 903 26 Umeå, Sweden · <a href="mailto:andre@figflows.com">andre@figflows.com</a></p>
+<hr>
+<p><strong>Sources:</strong> <a href="https://eur-lex.europa.eu/eli/reg/2016/679/oj">https://eur-lex.europa.eu/eli/reg/2016/679/oj</a> (GDPR Arts. 6, 12–21, 37) · <a href="https://www.imy.se/en/about-us/contact-us/">https://www.imy.se/en/about-us/contact-us/</a> (IMY contact details, verified 2026-09-29) · <a href="https://www.riksdagen.se/sv/dokument-och-lagar/dokument/svensk-forfattningssamling/bokforingslag-19991078_sfs-1999-1078/">https://www.riksdagen.se/sv/dokument-och-lagar/dokument/svensk-forfattningssamling/bokforingslag-19991078_sfs-1999-1078/</a> (7-year bookkeeping retention) · <a href="https://developer.atlassian.com/platform/marketplace/data-privacy-guidelines/">https://developer.atlassian.com/platform/marketplace/data-privacy-guidelines/</a> · <a href="https://developer.atlassian.com/platform/forge/faq-privacy-security/">https://developer.atlassian.com/platform/forge/faq-privacy-security/</a> · <a href="https://developer.atlassian.com/platform/forge/data-residency/">https://developer.atlassian.com/platform/forge/data-residency/</a> (Forge hosted storage follows the site&#39;s location) · <a href="https://developer.atlassian.com/platform/forge/storage-reference/hosted-storage-data-lifecycle/">https://developer.atlassian.com/platform/forge/storage-reference/hosted-storage-data-lifecycle/</a> (deletion on uninstall)</p>
+</main><footer>Project Snapshot for Jira · by FigFlows, Umeå, Sweden · documentation</footer></body></html>

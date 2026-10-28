@@ -1,0 +1,224 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Data handling · Project Snapshot for Jira</title><link rel="icon" href="icon.svg"><link rel="stylesheet" href="style.css"></head><body><header><div class="bar"><a class="brand" href="index.html"><img src="icon.svg" alt="">Project Snapshot for Jira</a><nav><a href="index.html">Getting started</a><a href="faq.html">FAQ</a><a href="troubleshooting.html">Troubleshooting</a><a href="changelog.html">Changelog</a><a href="privacy.html">Privacy policy</a><a href="terms.html">Terms of use</a><a href="data-handling.html" class="on">Data handling</a></nav></div></header><main><h1>Data handling and security — Project Snapshot for Jira</h1>
+<p>This document is the app&#39;s security policy for the Marketplace &quot;Security policy&quot; link and for customer security reviews. Publish it at <a href="https://figflows.github.io/project-snapshot/data-handling.html">https://figflows.github.io/project-snapshot/data-handling.html</a>.</p>
+<h2>1. Data flow</h2>
+<pre><code> ┌──────────────────────────┐        ┌───────────────────────────────┐        ┌──────────────────┐
+ │  Jira Cloud (Atlassian)  │  TLS   │  User&#39;s browser (Forge        │  file  │  User&#39;s disk     │
+ │  REST API v3             │ ─────► │  Custom UI iframe, app code   │ ─────► │  *.zip parts     │
+ │  - search/jql            │        │  runs in memory only)         │        │                  │
+ │  - issue comments,       │        │  - streams issues + files     │        │  project.json    │
+ │    worklogs, changelog   │        │  - builds ZIP in memory       │        │  issues/*.json   │
+ │  - attachment content    │        │  - hashes each file (SHA-256) │        │  attachments/    │
+ │  - project config        │        │  - writes part when full      │        │  manifest.json   │
+ └──────────────────────────┘        └───────────────────────────────┘        └──────────────────┘
+
+ One more arrow (since 1.1): when an export finishes, the browser calls the app&#39;s single Forge
+ resolver function, which writes one small snapshot-log record to Forge Key-Value Storage
+ (Atlassian-hosted, inside the customer&#39;s Atlassian site and region). The record holds
+ metadata only — never issue content, comments or attachments. No external host.
+ The vendor is not on this diagram.
+
+ ┌──────────────────────────┐        ┌───────────────────────────────┐
+ │  User&#39;s browser          │ bridge │  Forge resolver (src/index.js)│
+ │  &quot;export finished&quot;       │ ─────► │  → Forge KVS: snapshot log    │
+ └──────────────────────────┘        └───────────────────────────────┘
+</code></pre>
+<p>Every API call is made by the Forge Custom UI bridge (<code>requestJira</code>) <strong>as the signed-in user</strong>. Atlassian enforces the user&#39;s permissions on every call. The app cannot see anything the user cannot.</p>
+<p>Two things added in 1.2 happen <strong>entirely in the browser</strong> and add no arrow to the diagram: the readable HTML archive (<code>index.html</code>, <code>issues/&lt;KEY&gt;.html</code>) is rendered from the issue data already in memory while the ZIP is built; and the <strong>Verify a snapshot</strong> tab reads a ZIP part the user selects from their own disk, hashes every file in memory and compares it with the part&#39;s <code>manifest.json</code>. Verification uploads nothing and makes no Jira request. The only new server-side operation is <code>deleteProjectLog</code>, which removes a project&#39;s snapshot-log records from Forge storage when a user with the Jira permission Administer Projects on that project (or Administer Jira) asks for it; the resolver verifies that permission with Jira before deleting.</p>
+<p>Version 1.3 adds the <strong>snapshot policy</strong> and, with it, the app&#39;s only write to Jira. Two more arrows, both inside Atlassian:</p>
+<pre><code> ┌──────────────────────────┐        ┌───────────────────────────────┐
+ │  Admin&#39;s browser         │ bridge │  Forge resolver               │
+ │  Coverage / Policy tab   │ ─────► │  → KVS: project list (id,     │
+ │  (Jira admin saves the   │        │    key, name), policy         │
+ │   rule)                  │        │                               │
+ └──────────────────────────┘        └───────────────────────────────┘
+
+ ┌──────────────────────────┐  reads │  Forge KVS: policy, snapshot  │
+ │  Forge scheduled function│ ◄───── │  log, project list, reminder  │
+ │  policy-check (weekly,   │        │  keys                         │
+ │  licensed sites only)    │  asApp ┌───────────────────────────────┐
+ │                          │ ─────► │  Jira REST: POST issue        │
+ │                          │        │  &quot;Snapshot due: KEY (name)&quot;   │
+ └──────────────────────────┘        │  in the chosen reminder       │
+                                     │  project (only if policy on   │
+                                     │  and reminder project set)    │
+                                     └───────────────────────────────┘
+</code></pre>
+<p>The scheduled function runs without a user, so it calls Jira <strong>as the app</strong> (<code>asApp()</code>): it reads <code>serverInfo</code> and the reminder project&#39;s issue types, checks whether an earlier reminder is still open (<code>GET issue/{key}</code>, <code>POST search/jql</code> on the label), and creates at most 20 tasks per run. It never reads issue content of the projects it checks; it only compares the snapshot log with the remembered project list. No e-mail is sent by the app; Jira&#39;s own notifications inform the assignee. With the policy off, or with no reminder project chosen, the function writes nothing.</p>
+<h2>2. Data categories touched by the app</h2>
+<table>
+<thead>
+<tr>
+<th>Category</th>
+<th>Examples</th>
+<th>Where it goes</th>
+<th>Stored by the app?</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Issue data</td>
+<td>summary, description, all system and custom fields, labels, status, dates</td>
+<td>browser memory → user&#39;s ZIP</td>
+<td>No</td>
+</tr>
+<tr>
+<td>People data inside issues</td>
+<td>reporter, assignee, comment authors, worklog authors (display name, account ID, avatar URL as returned by Jira)</td>
+<td>browser memory → user&#39;s ZIP</td>
+<td>No</td>
+</tr>
+<tr>
+<td>Comments, worklogs, change history</td>
+<td>text, timestamps, author</td>
+<td>browser memory → user&#39;s ZIP</td>
+<td>No</td>
+</tr>
+<tr>
+<td>Attachments</td>
+<td>binary file content, filename, MIME type, size, author</td>
+<td>browser memory → user&#39;s ZIP</td>
+<td>No</td>
+</tr>
+<tr>
+<td>Project configuration</td>
+<td>issue types, statuses, components, versions, roles (with role actors), link types, field definitions</td>
+<td>browser memory → user&#39;s ZIP</td>
+<td>No</td>
+</tr>
+<tr>
+<td>Licence state</td>
+<td>active / none, from Forge context</td>
+<td>read at page load</td>
+<td>No</td>
+</tr>
+<tr>
+<td><strong>Snapshot log</strong> (since 1.1)</td>
+<td>project id, key and name; mode (full / attachments only); timestamp; Atlassian account id of the user who ran the export; counts (issues, attachments, attachment bytes, bytes written, parts, errors); SHA-256 of the manifest; sample-mode flag; the JQL used; the incremental cut-off if any; whether the export was complete</td>
+<td>Forge Key-Value Storage, inside the customer&#39;s Atlassian site</td>
+<td><strong>Yes</strong> — metadata only; ≤ 50 records per project; no issue content. Readable only for projects the calling user can browse; the account id and the JQL are returned only to Jira administrators</td>
+</tr>
+<tr>
+<td>Project list (coverage overview)</td>
+<td>id, key, name of projects the user can browse</td>
+<td>browser memory, joined with the snapshot log for display</td>
+<td>No</td>
+</tr>
+<tr>
+<td><strong>Remembered project list</strong> (since 1.3)</td>
+<td>id, key, name, type (software / business / service desk, team-managed flag) of the projects a Jira administrator could see when one last opened the Coverage or Policy page (visits by other users do not change it)</td>
+<td>Forge Key-Value Storage (<code>projects</code>), inside the customer&#39;s Atlassian site; overwritten on each such visit; at most 1,000 entries, names cut to 80 characters</td>
+<td><strong>Yes</strong> — names and keys only, so the weekly check (which runs without a user) knows which projects exist</td>
+</tr>
+<tr>
+<td><strong>Policy settings</strong> (since 1.3)</td>
+<td>on/off, allowed snapshot age in days, whether never-exported projects count, reminder project key, optional assignee account id, excluded project keys; plus the last-run summary (counts, keys of projects behind the rule, error messages)</td>
+<td>Forge Key-Value Storage (<code>policy</code>, <code>policy:lastRun</code>)</td>
+<td><strong>Yes</strong> — settings only</td>
+</tr>
+<tr>
+<td><strong>Reminder task keys</strong> (since 1.3)</td>
+<td>the issue key of the &quot;Snapshot due&quot; task created for a project, with the creation time</td>
+<td>Forge Key-Value Storage (<code>reminder:&lt;projectId&gt;</code>), used to avoid duplicates</td>
+<td><strong>Yes</strong> — issue key only</td>
+</tr>
+<tr>
+<td><strong>Reminder tasks</strong> (since 1.3)</td>
+<td>Jira issues created by the app in the reminder project: summary &quot;Snapshot due: KEY (name)&quot;, label <code>project-snapshot-reminder</code>, description with the reason and the export link, optional assignee</td>
+<td>written to the customer&#39;s own Jira through the Jira API; ordinary issues under the customer&#39;s control</td>
+<td>No — they live in Jira, not in app storage</td>
+</tr>
+<tr>
+<td>ZIP parts selected for verification (since 1.2)</td>
+<td>the bytes of a snapshot part the user picks in the Verify a snapshot tab</td>
+<td>browser memory only; hashed, compared with the part&#39;s manifest, then discarded</td>
+<td>No</td>
+</tr>
+<tr>
+<td>Evidence and coverage CSVs (since 1.2)</td>
+<td>rows of the snapshot log (metadata, see above)</td>
+<td>built in browser memory, saved to the user&#39;s disk</td>
+<td>No</td>
+</tr>
+<tr>
+<td>Anything about the user or vendor</td>
+<td>—</td>
+<td>—</td>
+<td>Nothing collected. No cookies, no analytics, no localStorage/sessionStorage, no telemetry.</td>
+</tr>
+</tbody></table>
+<p>The ZIP files may therefore contain personal data of the customer&#39;s users. Once written, they are ordinary files on the user&#39;s device under the customer&#39;s control.</p>
+<h2>3. Storage</h2>
+<ul>
+<li><strong>App storage: metadata only.</strong> Forge Key-Value Storage (<code>storage:app</code> scope), Atlassian-hosted. The snapshot log uses two key families: <code>latest:&lt;projectId&gt;</code> (most recent record, for the coverage overview) and <code>snap:&lt;projectId&gt;:&lt;timestamp&gt;</code> (history). After each write the app trims history to the newest 50 records per project. The account id and timestamp are set server-side by the resolver from the Forge context; the browser cannot forge them. Each record also carries a server-computed <code>complete</code> flag (full mode, licensed, no JQL filter, not incremental, zero errors); only complete snapshots are written to <code>latest:</code>, so the coverage overview, the policy and the incremental baseline never rely on a partial export. Since 1.2 the resolver also serves <code>history</code> (the records of one project, newest first) and <code>deleteProjectLog</code> (removes all records of one project when a user with Administer Projects on it, or Administer Jira, asks). Since 1.3 there are five more keys: <code>policy</code> (the snapshot policy settings, validated server-side: only the allowed day values, project keys matching Jira&#39;s key pattern, at most 500 excluded keys), <code>policy:lastRun</code> (summary of the last check; a refused reminder create is recorded as the project key, the HTTP status and at most 160 characters of Jira&#39;s error message — visible to Jira administrators only), <code>policy:install</code> (the app and environment ids, stored when an administrator saves the policy, so that reminder links created by the weekly run point at the right page), <code>projects</code> (the remembered project list — id, key, name, type; at most 1,000 entries, names cut to 80 characters; written only by Jira administrators and overwritten each time one opens the Coverage or Policy page) and <code>reminder:&lt;projectId&gt;</code> (the issue key of the reminder task created for that project). No issue content in any of them. No entity properties, no SQL, no external database. Every resolver checks the calling user&#39;s Jira permissions server-side (<code>mypermissions</code>, as the user) before it reads, writes or deletes: Browse Projects on the project to log a snapshot or read its records; Administer Projects on the project or Administer Jira to delete them; Administer Jira to store the project list, change the policy or run the check. Reads of the log are filtered to the projects the user can browse, and the exporter&#39;s account id and the JQL are returned only to Jira administrators.</li>
+<li><strong>Browser storage: none.</strong> The app does not use cookies, localStorage, sessionStorage, IndexedDB or the Cache API.</li>
+<li><strong>Memory:</strong> issue JSON and attachment bytes are held in browser memory only for as long as it takes to compress them into the current ZIP part (at most three attachments are being downloaded at once). Each part is released after it is written; only the most recently written part is kept until the next one is ready (so it can be saved again if the download did not appear), so peak memory is about two parts plus the attachments in flight. Cancelling, leaving the page or closing the tab aborts the export and discards everything not yet written. Chrome, Edge and Firefox show a leave-page warning while an export is running; Safari does not show this warning for apps embedded in Jira.</li>
+<li><strong>Logs:</strong> the app writes no log output. Neither the resolver nor the scheduled policy function logs payloads. Forge platform logs (invocation metadata) are Atlassian&#39;s and contain no issue content, because no issue content ever reaches the app&#39;s backend.</li>
+</ul>
+<h2>4. Encryption</h2>
+<ul>
+<li><strong>In transit:</strong> all traffic is between the user&#39;s browser and Atlassian, over Atlassian&#39;s TLS. The app adds no connections of its own.</li>
+<li><strong>At rest:</strong> the snapshot log is in Forge-hosted storage, encrypted at rest by Atlassian. Files on the user&#39;s disk inherit whatever disk encryption the user has. We recommend full-disk encryption and encrypting ZIPs before they leave the organisation.</li>
+<li><strong>Integrity:</strong> <code>manifest.json</code> records a SHA-256 hash of every file so tampering or corruption can be detected later. Since 1.2 the <strong>Verify a snapshot</strong> tab does this check in the browser: presence, size and SHA-256 of every file in a part against that part&#39;s manifest, reported as Verified or Mismatch with the reason per file.</li>
+<li><strong>HTML archive rendering:</strong> the readable archive is static HTML generated by the app with strict escaping of all issue content; the only script is the inline sort/search on <code>index.html</code>; there are no external resources (no fonts, images, stylesheets or scripts fetched from anywhere); links are limited to <code>http(s)</code> and <code>mailto</code> targets and to the archive&#39;s own files. Opening it makes no network request.</li>
+<li><strong>CSV files:</strong> in <code>issues.csv</code>, the evidence CSV and the coverage CSV, any cell that begins with <code>=</code>, <code>+</code>, <code>-</code>, <code>@</code>, a tab or a carriage return is prefixed with an apostrophe so that spreadsheets do not execute it as a formula (OWASP CSV-injection guidance).</li>
+<li><strong>ZIP entry names:</strong> attachment filenames are sanitised before they become ZIP paths — path separators, control characters and invisible Unicode format and bidirectional-override characters are removed, <code>.</code>/<code>..</code> are replaced, length is capped — and each file is prefixed with its attachment id under <code>attachments/&lt;KEY&gt;/</code>.</li>
+</ul>
+<h2>5. Retention and deletion</h2>
+<ul>
+<li>The app retains only the snapshot log, in Forge-hosted storage. At most 50 records per project; older ones are deleted automatically at the next export.</li>
+<li>On uninstall, Atlassian soft-deletes the app&#39;s Forge-hosted storage and then destroys it under Atlassian&#39;s standard retention schedule; a customer can ask Atlassian to relink the data to a new installation within 21 days (Forge &quot;Data lifecycle for Forge-hosted storage&quot;). The vendor holds no copy and cannot read the log. Uninstalling removes the app pages immediately.</li>
+<li>The log started with version 1.1.0; exports made with 1.0.x are not in it. Since 1.2.0 a user with the Jira permission Administer Projects on a project (or the global permission Administer Jira) can delete that project&#39;s log (all its records, immediately) with <strong>Delete log for this project</strong> on the project page; the resolver verifies that permission with Jira, carries out the deletion in Forge storage, and it cannot be undone.</li>
+<li>Since 1.3.0 the policy settings persist until a Jira admin changes them (switching the policy off keeps the settings but stops all checks and writes); the remembered project list is replaced on every visit by a Jira administrator to the Coverage or Policy page; the reminder key for a project is replaced when a new reminder is created for it. All of it is removed with the app&#39;s storage on uninstall.</li>
+<li>Reminder tasks created in Jira are ordinary issues in the customer&#39;s own project. The app never deletes or edits them; the customer closes or deletes them like any other issue. Uninstalling the app leaves them in place.</li>
+<li>Exported files are retained by the customer for as long as the customer decides. Deleting them is an ordinary file deletion on the customer&#39;s device.</li>
+<li>Support correspondence: see privacy-policy.md (24 months, bookkeeping records 7 years).</li>
+</ul>
+<h2>6. Access control</h2>
+<ul>
+<li><strong>Scopes:</strong> <code>read:jira-work</code> (&quot;Read Jira project and issue data, search for issues and objects associated with issues like attachments and worklogs&quot;), <code>write:jira-work</code> (since 1.3; used for exactly one operation — creating the &quot;Snapshot due&quot; reminder tasks of the snapshot policy, only while the policy is on and a reminder project is set; no other write) and <code>storage:app</code> (Forge-hosted storage: snapshot log, policy, project list, reminder keys). No <code>read:jira-user</code>. No admin scope.</li>
+<li><strong>Who can open the pages:</strong> the project page is under Project settings, which Jira shows only to project admins. The global page (Apps → Project Snapshot) is reachable by every Jira user; its Coverage overview and the snapshot-log resolvers return only projects the calling user can browse (checked server-side, as that user), and every export still runs as the user — Jira itself refuses issues and attachments the user may not see, so the app performs no separate pre-check before an export.</li>
+<li><strong>Who can delete a project&#39;s log:</strong> users with the Jira permission <strong>Administer Projects</strong> on that project, or <strong>Administer Jira</strong>; the resolver checks <code>mypermissions?projectId=…&amp;permissions=ADMINISTER_PROJECTS</code> as the calling user and refuses otherwise.</li>
+<li><strong>Who sees what in the log:</strong> anyone who can browse a project sees its export dates, mode and counts; the exporter&#39;s account id and the JQL used are returned only to Jira administrators.</li>
+<li><strong>Who can change the policy:</strong> only users with the Jira global permission <strong>Administer Jira</strong>. The resolver checks <code>mypermissions?permissions=ADMINISTER</code> as the calling user before saving the policy or running the check by hand; other users receive only the rule itself (on/off, allowed age, whether never-exported projects count), not the reminder project, the assignee, the ignored projects or the last-run summary. Running the check by hand additionally requires an active licence. The project list the weekly check uses is written only when a Jira administrator opens the Coverage or Policy page (at most 1,000 projects: id, key, name cut to 80 characters, type); other users&#39; visits do not change it.</li>
+<li><strong>Runs as user / as app:</strong> every export call uses the user&#39;s own identity. <code>asApp()</code> is used only by the policy check (which runs on a schedule, without a user) and only for: creating a reminder task in the chosen project, reading the status of a task it created earlier, searching that project by the reminder label, reading <code>serverInfo</code> and the reminder project&#39;s issue types. The app identity never reads issue content of the projects being checked; it works from the snapshot log and the remembered project list. The resolver&#39;s own Jira calls are all made as the calling user and are read-only: <code>mypermissions</code> (Administer Jira, Browse Projects, Administer Projects) and <code>project/search</code> to list the projects that user can browse.</li>
+<li><strong>Licence:</strong> sample-mode limits (25 issues, no attachments) are enforced in the browser only; every export call still runs with the user&#39;s own Jira permissions, so bypassing them exposes nothing the user could not already read in Jira. The policy check runs only on licensed sites: the scheduled trigger is filtered by licence and the manual run checks the licence in the resolver.</li>
+<li><strong>No secrets:</strong> the app holds no API keys, tokens, passwords or shared secrets. It never sees Atlassian PATs.</li>
+</ul>
+<h2>7. Sub-processors</h2>
+<p><strong>For app data: none.</strong> No third party receives any customer data through the app, because the app transmits data only between Atlassian and the user&#39;s own device, and the snapshot log is held by Atlassian itself (Forge-hosted storage), which is already covered by the customer&#39;s agreement with Atlassian.</p>
+<p><strong>For support:</strong> our e-mail provider, Microsoft 365 (Microsoft Ireland Operations Ltd), processes support correspondence (see privacy-policy.md).</p>
+<p>Statement for customers asking for a DPA: &quot;Project Snapshot for Jira does not transmit, store or otherwise process Customer Data outside the Customer&#39;s Atlassian site and the end user&#39;s own browser and device. FigFlows AB does not receive Customer Data through the app and therefore does not act as a processor of it under GDPR Article 28. A DPA is not required for the app. Atlassian&#39;s own DPA governs the Jira platform.&quot;</p>
+<h2>8. Egress and remotes</h2>
+<ul>
+<li><strong>Egress permissions in manifest:</strong> none. No <code>permissions.external</code> entries.</li>
+<li><strong>Remotes:</strong> none.</li>
+<li><strong>Content Security Policy:</strong> Forge&#39;s default Custom UI CSP; no additional <code>fetch</code>, <code>images</code>, <code>scripts</code> or <code>styles</code> domains.</li>
+<li><strong>Runs on Atlassian:</strong> eligible (no external domains, no remotes, no Connect modules, no providers, no dynamic web triggers; Forge-hosted storage and a Forge <code>scheduledTrigger</code> do not affect eligibility). Forge confirmed eligibility on deploy of Forge app version 3.0.0 (app 1.1.0), of Forge app version 3.2.0 (app 1.2.0) and of the 4.x development deploy (app 1.3.0) on 2026-09-29. Verify with <code>forge eligibility</code> before each release.</li>
+<li><strong>E-mail:</strong> the app sends none and cannot (Forge has no mail API and the app has no egress). Assignees of reminder tasks are notified by Jira&#39;s own notification scheme.</li>
+</ul>
+<h2>9. Data residency</h2>
+<p>All stored data (the snapshot log, the policy, the project list and the reminder keys) is kept exclusively in persistent Forge-hosted storage. Atlassian&#39;s Forge data-residency documentation states that an app is eligible for PINNED status when it stores in-scope End-User Data exclusively in persistent Forge hosted storage, that such data &quot;will be hosted in the admin&#39;s chosen location&quot;, and that if an admin moves the site to another location &quot;all installed Forge apps using persistent Forge hosted storage will also be migrated there&quot;. So the log follows the customer&#39;s Jira site&#39;s region with no action from us. Export data read by the app comes from wherever the customer&#39;s Jira site is hosted and goes to wherever the user&#39;s device is.</p>
+<h2>10. Security practices (vendor)</h2>
+<ul>
+<li>Least privilege: one read scope, one write scope confined to a single optional feature, plus app storage for metadata; scope changes are treated as major versions and explained in the changelog (1.1.0 added <code>storage:app</code>; Forge major version 3.0.0. 1.2.0 added no scope; Forge version 3.2.0. 1.3.0 added <code>write:jira-work</code> for reminder tasks; Forge major version 4.x). The write path is a single function with a hard cap of 20 issues per run and duplicate protection.</li>
+<li>Dependencies: 7 runtime packages (react, react-dom, @forge/bridge, @forge/api, @forge/resolver, @forge/kvs, fflate), all pinned in the lockfile and resolved from registry.npmjs.org; <code>npm audit</code> run before each release; none performs network I/O at runtime. Two transitive packages (iframe-resizer via @forge/bridge, and the build tool esbuild) run install scripts on the developer&#39;s machine at build time only.</li>
+<li>Build: reproducible Vite build; <code>forge deploy</code> from a clean checkout; no CI service holds Atlassian credentials beyond the developer&#39;s own machine.</li>
+<li>Testing: unit tests for the export engine, the resolver authorization, the policy check and the policy logic (101 passing after the 2026-09-30 review), including manifest hashing, part splitting, incremental JQL, HTML escaping and link filtering, CSV formula protection, filename sanitisation, verification against the manifest, policy validation, stale-project selection, the reminder issue fields and the duplicate-detection JQL.</li>
+<li>Vulnerability reports: <a href="mailto:andre@figflows.com">andre@figflows.com</a> — we acknowledge within 2 business days and aim to fix confirmed issues in the app within 30 days. We participate in the Marketplace Security Bug Bounty Program: <strong>UNVERIFIED / decide before listing</strong> (participation is optional and costs money; Atlassian&#39;s programme page states current terms).</li>
+<li>Incident response: because the app holds no product data (the log is metadata only), the realistic incidents are (a) a bug that makes an export incomplete or wrong, and (b) a compromised dependency. For (a) we publish a fix and a changelog note; for (b) we additionally notify Atlassian via the Marketplace partner channel and post a security advisory in the docs.</li>
+<li>Certifications: none (SOC 2, ISO 27001 are not proportionate for a one-person vendor whose only stored data is metadata inside Atlassian). We answer CAIQ-Lite on request; most answers are &quot;not applicable — no data stored outside Atlassian&quot;.</li>
+</ul>
+<h2>11. What the customer should still do</h2>
+<ul>
+<li>Decide who may run exports (project admin role).</li>
+<li>Store exported ZIPs on encrypted disks or in an access-controlled archive.</li>
+<li>Verify <code>manifest.json</code> hashes when the archive is used as evidence — with the Verify a snapshot tab or on the command line.</li>
+<li>Keep incremental ZIPs together with the full snapshot they extend; an incremental part on its own is not a complete record.</li>
+<li>Treat the HTML archive like the JSON: it is static and safe to open offline, but it contains the same personal data.</li>
+<li>Treat exports as containing personal data of users named in issues; apply your retention policy to them.</li>
+<li>Know that the snapshot log records when each export ran and, visible to Jira administrators only, who ran it (account id) and the JQL used; anyone who can browse the project sees its dates, mode and counts.</li>
+<li>If you switch the snapshot policy on with a reminder project, choose a project whose members should see which projects are behind on snapshots: each reminder task names the project (key and name) and links to its export page. Anyone who can see the reminder project sees those tasks. Use the ignore list for projects that should not be checked.</li>
+<li>The policy check works from the project list remembered when a Jira admin last opened the Coverage or Policy page. Open one of them after creating projects so the check knows about them.</li>
+</ul>
+<hr>
+<p><strong>Sources:</strong> <a href="https://developer.atlassian.com/cloud/jira/platform/scopes-for-connect-and-oauth-2-3LO-apps/">https://developer.atlassian.com/cloud/jira/platform/scopes-for-connect-and-oauth-2-3LO-apps/</a> (read:jira-work definition) · <a href="https://developer.atlassian.com/platform/forge/runs-on-atlassian-apps/">https://developer.atlassian.com/platform/forge/runs-on-atlassian-apps/</a> · <a href="https://developer.atlassian.com/platform/marketplace/runs-on-atlassian/">https://developer.atlassian.com/platform/marketplace/runs-on-atlassian/</a> · <a href="https://developer.atlassian.com/platform/forge/data-residency/">https://developer.atlassian.com/platform/forge/data-residency/</a> (PINNED eligibility and &quot;admin&#39;s chosen location&quot;, retrieved 2026-09-29) · <a href="https://developer.atlassian.com/platform/forge/storage-reference/hosted-storage-data-lifecycle/">https://developer.atlassian.com/platform/forge/storage-reference/hosted-storage-data-lifecycle/</a> (soft delete on uninstall, 21-day relink, retrieved 2026-09-29) · <a href="https://developer.atlassian.com/platform/forge/storage-reference/kvs-api/">https://developer.atlassian.com/platform/forge/storage-reference/kvs-api/</a> (storage:app) · <a href="https://developer.atlassian.com/platform/forge/faq-privacy-security/">https://developer.atlassian.com/platform/forge/faq-privacy-security/</a> · <a href="https://developer.atlassian.com/platform/marketplace/data-privacy-guidelines/">https://developer.atlassian.com/platform/marketplace/data-privacy-guidelines/</a></p>
+</main><footer>Project Snapshot for Jira · by FigFlows, Umeå, Sweden · documentation</footer></body></html>
